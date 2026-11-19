@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Traffic Condition Predictor</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Will the road be clear?</h1>
+      <p>Enter current conditions and the model classifies traffic as Low, Medium or Heavy.</p>
+    </header>
+
+    <div class="layout">
+      <form id="form" novalidate>
+        <div class="row">
+          <label>Hour of day (0–23)
+            <input type="number" name="hour" min="0" max="23" value="8" required>
+          </label>
+          <label>Day of week
+            <select name="day_of_week">
+              {% for d in days %}<option value="{{ loop.index0 }}">{{ d }}</option>{% endfor %}
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Weather
+            <select name="weather">
+              {% for w in weather %}<option>{{ w }}</option>{% endfor %}
+            </select>
+          </label>
+          <label>Public holiday
+            <select name="is_holiday"><option value="0">No</option><option value="1">Yes</option></select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Vehicles per hour
+            <input type="number" name="vehicle_count" min="0" max="5000" value="800" required>
+          </label>
+          <label>Average speed (km/h)
+            <input type="number" name="avg_speed" min="0" max="150" step="0.1" value="35" required>
+          </label>
+        </div>
+        <button type="submit">Predict traffic</button>
+      </form>
+
+      <section id="result" aria-live="polite">
+        <p class="empty">Your prediction will appear here.</p>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const form = document.getElementById("form");
+    const result = document.getElementById("result");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = Object.fromEntries(new FormData(form));
+      result.innerHTML = '<p class="empty">Predicting…</p>';
+      try {
+        const res = await fetch("/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) { result.innerHTML = `<p class="error">${data.error}</p>`; return; }
+        const bars = ["Low", "Medium", "Heavy"].map(k =>
+          `<div class="bar"><span>${k}</span><div class="track"><div class="fill ${k.toLowerCase()}" style="width:${data.probabilities[k]}%"></div></div><b>${data.probabilities[k]}%</b></div>`
+        ).join("");
+        result.innerHTML = `<div class="verdict ${data.prediction.toLowerCase()}">${data.prediction} traffic</div>${bars}`;
+      } catch (err) {
+        result.innerHTML = '<p class="error">Could not reach the server. Is Flask still running?</p>';
+      }
+    });
+  </script>
+</body>
+</html>
