@@ -7,59 +7,100 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <main>
-    <header>
-      <h1>Will the road be clear?</h1>
-      <p>Enter current conditions and the model classifies traffic as Low, Medium or Heavy.</p>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Traffic Intelligence home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 20V8l8-5 8 5v12M8 20v-7h8v7M12 3v10"/></svg>
+        </span>
+        <span>Traffic<span>Intel</span></span>
+      </a>
+      <span class="status"><i></i> Model ready</span>
     </header>
 
-    <div class="layout">
-      <form id="form" novalidate>
-        <div class="row">
-          <label>Hour of day (0–23)
-            <input type="number" name="hour" min="0" max="23" value="8" required>
-          </label>
-          <label>Day of week
-            <select name="day_of_week">
-              {% for d in days %}<option value="{{ loop.index0 }}">{{ d }}</option>{% endfor %}
-            </select>
-          </label>
-        </div>
-        <div class="row">
-          <label>Weather
-            <select name="weather">
-              {% for w in weather %}<option>{{ w }}</option>{% endfor %}
-            </select>
-          </label>
-          <label>Public holiday
-            <select name="is_holiday"><option value="0">No</option><option value="1">Yes</option></select>
-          </label>
-        </div>
-        <div class="row">
-          <label>Vehicles per hour
-            <input type="number" name="vehicle_count" min="0" max="5000" value="800" required>
-          </label>
-          <label>Average speed (km/h)
-            <input type="number" name="avg_speed" min="0" max="150" step="0.1" value="35" required>
-          </label>
-        </div>
-        <button type="submit">Predict traffic</button>
-      </form>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Smart route planning</p>
+        <h1>Check traffic conditions</h1>
+        <p class="intro">Enter the conditions below to predict congestion and plan a smoother journey.</p>
+      </div>
+      <div class="hero-icon" aria-hidden="true">
+        <svg viewBox="0 0 64 64"><path d="M13 49V24l19-12 19 12v25M22 49V31h20v18M32 12v19"/></svg>
+      </div>
+    </section>
 
-      <section id="result" aria-live="polite">
-        <p class="empty">Your prediction will appear here.</p>
+    <div class="workspace">
+      <section class="card form-card">
+        <div class="card-heading">
+          <div>
+            <p class="section-kicker">Journey details</p>
+            <h2>Current conditions</h2>
+          </div>
+          <button class="icon-button" type="button" id="reset" title="Reset form" aria-label="Reset form">
+            <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
+          </button>
+        </div>
+
+        <form id="form" novalidate>
+          <div class="row">
+            <label>Hour of day
+              <div class="field"><span class="field-icon">◷</span><input type="number" name="hour" min="0" max="23" value="8" required><em>0–23</em></div>
+            </label>
+            <label>Day of week
+              <div class="field"><span class="field-icon">▦</span><select name="day_of_week">{% for d in days %}<option value="{{ loop.index0 }}">{{ d }}</option>{% endfor %}</select></div>
+            </label>
+          </div>
+          <div class="row">
+            <label>Weather
+              <div class="field"><span class="field-icon">☁</span><select name="weather">{% for w in weather %}<option>{{ w }}</option>{% endfor %}</select></div>
+            </label>
+            <label>Public holiday
+              <div class="field"><span class="field-icon">◇</span><select name="is_holiday"><option value="0">No</option><option value="1">Yes</option></select></div>
+            </label>
+          </div>
+          <div class="row">
+            <label>Vehicles per hour
+              <div class="field"><span class="field-icon">▰</span><input type="number" name="vehicle_count" min="0" max="5000" value="800" required><em>veh/h</em></div>
+            </label>
+            <label>Average speed
+              <div class="field"><span class="field-icon">↗</span><input type="number" name="avg_speed" min="0" max="150" step="0.1" value="35" required><em>km/h</em></div>
+            </label>
+          </div>
+          <button class="predict-button" type="submit"><span>Analyze traffic</span><b>→</b></button>
+        </form>
       </section>
+
+      <aside class="card result-card">
+        <div class="card-heading">
+          <div><p class="section-kicker">Prediction</p><h2>Traffic outlook</h2></div>
+          <span class="live-dot" title="Live prediction"></span>
+        </div>
+        <section id="result" aria-live="polite">
+          <div class="empty-state">
+            <div class="radar" aria-hidden="true"><span></span><i></i></div>
+            <h3>Ready to predict</h3>
+            <p>Complete the journey details to see your traffic outlook.</p>
+          </div>
+        </section>
+      </aside>
     </div>
   </main>
 
   <script>
     const form = document.getElementById("form");
     const result = document.getElementById("result");
+    document.getElementById("reset").addEventListener("click", () => {
+      form.reset();
+      result.innerHTML = '<div class="empty-state"><div class="radar" aria-hidden="true"><span></span><i></i></div><h3>Ready to predict</h3><p>Complete the journey details to see your traffic outlook.</p></div>';
+    });
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const payload = Object.fromEntries(new FormData(form));
-      result.innerHTML = '<p class="empty">Predicting…</p>';
+      const button = form.querySelector(".predict-button");
+      button.classList.add("loading");
+      button.querySelector("span").textContent = "Analyzing...";
+      result.innerHTML = '<div class="loading-state"><div class="loader"></div><h3>Analyzing conditions</h3><p>Running the traffic model…</p></div>';
       try {
         const res = await fetch("/predict", {
           method: "POST",
@@ -67,13 +108,16 @@
           body: JSON.stringify(payload),
         });
         const data = await res.json();
-        if (!res.ok) { result.innerHTML = `<p class="error">${data.error}</p>`; return; }
+        if (!res.ok) { result.innerHTML = `<div class="error-state"><span>!</span><h3>Check your details</h3><p>${data.error}</p></div>`; return; }
         const bars = ["Low", "Medium", "Heavy"].map(k =>
           `<div class="bar"><span>${k}</span><div class="track"><div class="fill ${k.toLowerCase()}" style="width:${data.probabilities[k]}%"></div></div><b>${data.probabilities[k]}%</b></div>`
         ).join("");
-        result.innerHTML = `<div class="verdict ${data.prediction.toLowerCase()}">${data.prediction} traffic</div>${bars}`;
+        result.innerHTML = `<div class="verdict ${data.prediction.toLowerCase()}"><span>${data.prediction}</span><small>traffic forecast</small></div><div class="probabilities">${bars}</div>`;
       } catch (err) {
-        result.innerHTML = '<p class="error">Could not reach the server. Is Flask still running?</p>';
+        result.innerHTML = '<div class="error-state"><span>!</span><h3>Connection error</h3><p>Could not reach the server. Is Flask still running?</p></div>';
+      } finally {
+        button.classList.remove("loading");
+        button.querySelector("span").textContent = "Analyze traffic";
       }
     });
   </script>
