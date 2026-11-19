@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: traffic-prediction
+    runtime: python
+    rootDir: traffic_app
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    plan: free
